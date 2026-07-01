@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pytesseract
+Pillow
+pdfplumber
+python-docx
+spacy
+skillNer
+rapidfuzz
