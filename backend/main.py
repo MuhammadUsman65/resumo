@@ -1,16 +1,19 @@
 import pytesseract
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import io
-from fastapi import UploadFile, File, HTTPException
 import pdfplumber
 import docx
-from fastapi import Form
 import spacy
 from spacy.matcher import PhraseMatcher
+from spacy.util import filter_spans
 import json
+from pathlib import Path
+import re
 from rapidfuzz import fuzz
+
+BASE_DIR = Path(__file__).parent
 
 app = FastAPI(title="Resumo Backend")
 
@@ -24,10 +27,10 @@ app.add_middleware(
 
 nlp = spacy.load("en_core_web_sm")
 
-with open("skills_dict.json", "r", encoding="utf-8") as f:
+with open(BASE_DIR / "skills_dict.json", "r", encoding="utf-8") as f:
     SURFACE_TO_CANONICAL = json.load(f)
 
-with open("custom_aliases.json", "r", encoding="utf-8") as f:
+with open(BASE_DIR / "custom_aliases.json", "r", encoding="utf-8") as f:
     CUSTOM_ALIASES = json.load(f)
 
 # custom aliases win on conflict — they exist specifically to override/patch gaps
@@ -39,6 +42,13 @@ skill_patterns = [nlp.make_doc(surface) for surface in SURFACE_TO_CANONICAL.keys
 skill_matcher.add("SKILLS", skill_patterns)
 
 FUZZY_MATCH_THRESHOLD = 85  # 0-100, tune later based on real test cases
+MIN_LEN_FOR_FUZZY = 4  # below this, fuzzy comparisons are too noisy to trust
+
+def clean_for_fuzzy(term: str) -> str:
+    # canonical names carry disambiguating annotations like "(Software)" or
+    # "(Programming Language)" that skew string-similarity comparisons — strip
+    # them before comparing
+    return re.sub(r"\s*\(.*?\)\s*", "", term).strip().lower()
 
 @app.get("/health")
 def health():
@@ -70,7 +80,13 @@ def parse_pdf(contents: bytes) -> str:
 
 def parse_docx(contents: bytes) -> str:
     document = docx.Document(io.BytesIO(contents))
-    return "\n".join(p.text for p in document.paragraphs if p.text)
+    parts = [p.text for p in document.paragraphs if p.text]
+    # a lot of resume templates (Canva exports especially) put contact info or
+    # skills inside tables, which document.paragraphs skips entirely
+    for table in document.tables:
+        for row in table.rows:
+            parts.extend(cell.text for cell in row.cells if cell.text)
+    return "\n".join(parts)
 
 @app.post("/api/analyze")
 async def analyze(resume: UploadFile = File(...), jdText: str = Form(...)):
@@ -100,12 +116,19 @@ async def analyze(resume: UploadFile = File(...), jdText: str = Form(...)):
     }
 
 def extract_keywords(text: str) -> dict[str, int]:
-    doc = nlp(text)
+    # make_doc only tokenizes — same as what we already use to build the matcher's
+    # patterns — so we skip the tagger/parser/NER, which PhraseMatcher never needed anyway
+    doc = nlp.make_doc(text)
     matches = skill_matcher(doc)
 
+    # PhraseMatcher returns overlapping/nested matches by default (e.g. "full stack"
+    # AND "full stack developer" both hitting on the same words) — filter_spans keeps
+    # only the longest non-overlapping span so we don't double-count
+    spans = filter_spans([doc[start:end] for _, start, end in matches])
+
     counts: dict[str, int] = {}
-    for match_id, start, end in matches:
-        surface_form = doc[start:end].text.lower()
+    for span in spans:
+        surface_form = span.text.lower()
         canonical = SURFACE_TO_CANONICAL.get(surface_form, surface_form)
         counts[canonical] = counts.get(canonical, 0) + 1
 
@@ -124,8 +147,18 @@ def match_keywords(jd_keywords: dict[str, int], resume_keywords: dict[str, int])
 
     fuzzy_matched = set()
     for jd_term in remaining_jd:
+        jd_clean = clean_for_fuzzy(jd_term)
+        if len(jd_clean) < MIN_LEN_FOR_FUZZY:
+            continue
         for resume_term in resume_terms:
-            if fuzz.ratio(jd_term.lower(), resume_term.lower()) >= FUZZY_MATCH_THRESHOLD:
+            resume_clean = clean_for_fuzzy(resume_term)
+            if len(resume_clean) < MIN_LEN_FOR_FUZZY:
+                continue
+            # ratio, not partial_ratio: partial_ratio only needs the shorter string
+            # to align against SOME substring of the longer one, which scores things
+            # like java/javascript, react/reactor, and go/django all at 100 — exactly
+            # the skill confusions this is supposed to avoid
+            if fuzz.ratio(jd_clean, resume_clean) >= FUZZY_MATCH_THRESHOLD:
                 fuzzy_matched.add(jd_term)
                 break
 
