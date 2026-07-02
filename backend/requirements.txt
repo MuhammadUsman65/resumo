@@ -8,3 +8,6 @@ python-docx
 spacy
 skillNer
 rapidfuzz
+groq
+python-dotenv
+fpdf2

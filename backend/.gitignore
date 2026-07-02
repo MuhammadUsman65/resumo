@@ -152,6 +152,7 @@ __pycache__/
 # next.js
 /.next/
 /out/
+.env
 
 # production
 /build
