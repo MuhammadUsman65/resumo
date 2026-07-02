@@ -42,6 +42,9 @@ with open(BASE_DIR / "custom_aliases.json", "r", encoding="utf-8") as f:
 # custom aliases win on conflict — they exist specifically to override/patch gaps
 SURFACE_TO_CANONICAL.update(CUSTOM_ALIASES)
 
+with open(BASE_DIR / "excluded_canonical_skills.json", "r", encoding="utf-8") as f:
+    EXCLUDED_CANONICAL = set(json.load(f))
+
 load_dotenv()
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 GROQ_MODEL = "openai/gpt-oss-120b"
@@ -282,6 +285,9 @@ def extract_keywords(text: str) -> dict[str, int]:
     for span in spans:
         surface_form = span.text.lower()
         canonical = SURFACE_TO_CANONICAL.get(surface_form, surface_form)
+         # Ignore skills to not score
+        if canonical in EXCLUDED_CANONICAL:
+            continue
         counts[canonical] = counts.get(canonical, 0) + 1
 
     return counts

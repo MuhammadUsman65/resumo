@@ -7,5 +7,13 @@
   "full stack developer": "Full Stack Software Engineering",
   "golang": "Go (Programming Language)",
   "go lang": "Go (Programming Language)",
-  "dockerfile": "Docker (Software)"
+  "dockerfile": "Docker (Software)",
+  "web application": "Web Development",
+  "web applications": "Web Development",
+  "web app": "Web Development",
+  "website": "Web Development",
+  "websites": "Web Development",
+  "responsive web application": "Web Development",
+  "responsive website": "Web Development",
+  "web": "web design"
 }

@@ -8,8 +8,8 @@ export default function Header() {
           </span>
           <span className="font-mono text-xs text-ink/40">v1</span>
         </div>
-        <span className="hidden font-mono text-xs uppercase tracking-widest text-ink/40 sm:block">
-          Resume × Job Description Analysis
+        <span className="hidden font-mono text-xs  tracking-widest text-ink/40 sm:block">
+          A project of Muhammad Usman
         </span>
       </div>
     </header>
