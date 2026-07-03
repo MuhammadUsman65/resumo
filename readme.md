@@ -145,14 +145,18 @@ resumo/
   frontend/
     src/
       components/
-        Header.jsx
-        StepIndicator.jsx
+        Chip.jsx
         JDInput.jsx
+        NameConfirm.jsx
         ResumeUpload.jsx
-        ResultsView.jsx
-        StatusMessage.jsx
+        ScoreCard.jsx
+        StepCard.jsx
+        SuggestionsPanel.jsx
       lib/
         api.js
+      pages/
+        Landing.jsx
+        Analyze.jsx
       App.jsx
       index.css
     .env                       not committed

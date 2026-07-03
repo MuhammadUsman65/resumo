@@ -1,69 +1,95 @@
 import { useState } from "react";
 import { ocrImage } from "../lib/api";
-import { Spinner, ErrorBanner } from "./StatusMessage";
 
-export default function JDInput({ jdText, onChange, onNext }) {
+export default function JDInput({ value, onChange }) {
+  const [mode, setMode] = useState("paste"); // "paste" | "image"
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [ocrError, setOcrError] = useState(null);
+  const [imageName, setImageName] = useState(null);
 
-  async function handleImage(e) {
-    const file = e.target.files?.[0];
+  async function handleImageUpload(e) {
+    const file = e.target.files[0];
     if (!file) return;
-    setError("");
+    setImageName(file.name);
+    setOcrError(null);
     setOcrLoading(true);
     try {
       const { extractedText } = await ocrImage(file);
       onChange(extractedText);
     } catch (err) {
-      setError(err.message);
+      setOcrError(err.message);
     } finally {
       setOcrLoading(false);
-      e.target.value = "";
     }
   }
 
-  const canContinue = jdText.trim().length > 20;
-
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-lg font-semibold text-ink">
-          1. Paste the job description
-        </h2>
-        <label className="cursor-pointer rounded border border-line px-3 py-1.5 font-mono text-xs text-ink/60 hover:border-ink/30 hover:text-ink">
-          Upload a screenshot instead
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImage}
-            className="hidden"
-          />
-        </label>
+    <div>
+      <div className="flex gap-2 mb-3.5">
+        <TabButton active={mode === "paste"} onClick={() => setMode("paste")}>
+          Paste text
+        </TabButton>
+        <TabButton active={mode === "image"} onClick={() => setMode("image")}>
+          Upload image
+        </TabButton>
       </div>
 
-      {ocrLoading && <Spinner label="Reading text from image..." />}
-      <ErrorBanner message={error} onDismiss={() => setError("")} />
+      {mode === "image" && (
+        <div className="mb-3.5">
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-brand cursor-pointer border-[1.5px] border-dashed border-line rounded-lg px-4 py-3 hover:border-brand transition">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            {imageName
+              ? `Change image (${imageName})`
+              : "Choose an image of the job posting"}
+          </label>
+          {ocrLoading && (
+            <p className="text-xs text-ink/50 mt-2 font-mono">
+              Extracting text…
+            </p>
+          )}
+          {ocrError && <p className="text-xs text-gap mt-2">{ocrError}</p>}
+        </div>
+      )}
 
       <textarea
-        value={jdText}
+        value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Paste the job description here, or upload a screenshot above and we'll extract the text for you to review."
-        rows={12}
-        className="w-full resize-y rounded border border-line bg-white/60 p-4 font-body text-sm text-ink placeholder:text-ink/30 focus:border-brand focus:outline-none"
+        placeholder={
+          mode === "image"
+            ? "Extracted text will appear here — check it over before analyzing"
+            : "Paste the job description here…"
+        }
+        rows={8}
+        className="w-full border-[1.5px] border-line rounded-lg p-4 text-sm font-body leading-relaxed focus:outline-none focus:border-brand transition resize-none"
       />
-
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-ink/40">
-          {jdText.trim().length} characters
-        </span>
-        <button
-          onClick={onNext}
-          disabled={!canContinue}
-          className="rounded bg-brand px-5 py-2 font-mono text-xs uppercase tracking-wide text-paper transition disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          Continue →
-        </button>
-      </div>
+      {mode === "image" && value && (
+        <p className="text-xs text-ink/45 mt-2">
+          Double-check the text above — OCR isn't perfect. Fix anything that
+          looks wrong before analyzing.
+        </p>
+      )}
     </div>
+  );
+}
+
+function TabButton({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "text-[13px] font-medium px-3.5 py-1.5 rounded-full font-mono transition " +
+        (active
+          ? "bg-ink text-white"
+          : "bg-white border-[1.5px] border-line text-ink/60 hover:border-ink/30")
+      }
+    >
+      {children}
+    </button>
   );
 }

@@ -1,95 +1,84 @@
-import { useEffect, useState } from "react";
-import { getSuggestions } from "../lib/api";
-import { Spinner, ErrorBanner } from "./StatusMessage";
+export default function SuggestionsPanel({
+  suggestions,
+  loading,
+  error,
+  onRetry,
+}) {
+  if (loading) {
+    return (
+      <div className="border-[1.5px] border-brand rounded-2xl bg-brand/5 p-7 mb-5">
+        <p className="font-mono text-xs uppercase tracking-wider text-brand mb-2">
+          AI Suggestions
+        </p>
+        <p className="text-sm text-ink/55">Generating suggestions…</p>
+      </div>
+    );
+  }
 
-export default function SuggestionsPanel({ analysis, jdText, onLoaded }) {
-  const [suggestions, setSuggestions] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  if (error) {
+    return (
+      <div className="border-[1.5px] border-line rounded-2xl bg-white p-7 mb-5 flex items-center justify-between gap-4 flex-wrap">
+        <p className="text-sm text-ink/55">
+          AI suggestions couldn't be generated.
+        </p>
+        <button
+          onClick={onRetry}
+          className="text-sm font-medium text-brand shrink-0"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError("");
-    getSuggestions({
-      resumeText: analysis.resumeText,
-      jdText,
-      missingKeywords: analysis.missingKeywords,
-      keywordScore: analysis.breakdown.keywordScore,
-      structureDetails: analysis.structureDetails,
-      completenessDetails: analysis.completenessDetails,
-    })
-      .then((data) => {
-        if (!cancelled) {
-          setSuggestions(data);
-          onLoaded?.(data);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analysis]);
+  if (!suggestions) return null;
 
   return (
-    <div className="space-y-4">
-      <h3 className="font-display text-base font-semibold text-ink">
+    <div className="border-[1.5px] border-brand rounded-2xl bg-brand/5 p-8 mb-5">
+      <p className="font-mono text-xs uppercase tracking-wider text-brand mb-4">
         AI Suggestions
+      </p>
+
+      <h3 className="font-display font-semibold text-[15px] mb-2">
+        Suggested summary
       </h3>
+      <p className="text-[13.5px] leading-relaxed text-ink/80 mb-5">
+        {suggestions.summarySuggestion}
+      </p>
 
-      {loading && <Spinner label="Generating suggestions..." />}
-      {error && <ErrorBanner message={`Suggestions unavailable: ${error}`} />}
+      {suggestions.bulletSuggestions?.length > 0 && (
+        <>
+          <h3 className="font-display font-semibold text-[15px] mb-2">
+            Bullet point suggestions
+          </h3>
+          <ul className="mb-5 space-y-1.5">
+            {suggestions.bulletSuggestions.map((b, i) => (
+              <SuggestionLine key={i}>{b}</SuggestionLine>
+            ))}
+          </ul>
+        </>
+      )}
 
-      {suggestions && (
-        <div className="space-y-5">
-          <div>
-            <h4 className="font-mono text-xs uppercase tracking-wide text-ink/50">
-              Suggested summary
-            </h4>
-            <p className="mt-1 text-sm leading-relaxed text-ink">
-              {suggestions.summarySuggestion}
-            </p>
-          </div>
-          <div>
-            <h4 className="font-mono text-xs uppercase tracking-wide text-ink/50">
-              Suggested bullet points
-            </h4>
-            <ul className="mt-1 space-y-2">
-              {suggestions.bulletSuggestions.map((b, i) => (
-                <li
-                  key={i}
-                  className="flex gap-2 text-sm leading-relaxed text-ink"
-                >
-                  <span className="text-brand">-</span>
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-mono text-xs uppercase tracking-wide text-ink/50">
-              General tips
-            </h4>
-            <ul className="mt-1 space-y-2">
-              {suggestions.generalTips.map((t, i) => (
-                <li
-                  key={i}
-                  className="flex gap-2 text-sm leading-relaxed text-ink"
-                >
-                  <span className="text-gap">-</span>
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+      {suggestions.generalTips?.length > 0 && (
+        <>
+          <h3 className="font-display font-semibold text-[15px] mb-2">
+            General tips
+          </h3>
+          <ul className="space-y-1.5">
+            {suggestions.generalTips.map((t, i) => (
+              <SuggestionLine key={i}>{t}</SuggestionLine>
+            ))}
+          </ul>
+        </>
       )}
     </div>
+  );
+}
+
+function SuggestionLine({ children }) {
+  return (
+    <li className="text-[13.5px] leading-relaxed text-ink/80 pl-4 relative before:content-['—'] before:absolute before:left-0 before:text-ink/40">
+      {children}
+    </li>
   );
 }

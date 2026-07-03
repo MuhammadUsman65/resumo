@@ -15,11 +15,6 @@ export default function Landing() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-14 items-center pt-16">
           <div>
-            <div className="flex items-center gap-2 font-mono text-xs tracking-wider uppercase text-brand mb-5">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand inline-block" />
-              Resume &times; Job Description
-            </div>
-
             <h1 className="font-display font-bold text-5xl leading-[1.05] tracking-tight mb-6">
               Find out what your resume is{" "}
               <span className="underline decoration-match decoration-4 underline-offset-[6px]">
